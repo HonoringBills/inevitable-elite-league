@@ -1,0 +1,681 @@
+/*
+ * IEL Founders Theme
+ * Keeps the new production layouts, but restores the original IEL visual language:
+ * condensed futuristic typography, luminous logo treatment, gold/teal edge glow,
+ * squared competitive-HUD panels, glowing titles, and dark arena backgrounds.
+ */
+
+:root {
+  --bg: #030606;
+  --bg-soft: #070b0b;
+  --panel: rgba(7, 13, 13, .92);
+  --panel-2: rgba(10, 18, 18, .94);
+  --text: #f7f7f2;
+  --muted: #91a09d;
+  --gold: #d8b75b;
+  --gold-bright: #ffe185;
+  --teal: #2fd8cb;
+  --teal-bright: #78fff2;
+  --line: rgba(104, 228, 215, .13);
+  --line-gold: rgba(255, 218, 111, .42);
+  --radius: 5px;
+  --iel-display: "Orbitron", "Oxanium", "Rajdhani", sans-serif;
+  --iel-body: "Rajdhani", Inter, system-ui, sans-serif;
+  --glow-gold: 0 0 7px rgba(255, 215, 105, .72), 0 0 20px rgba(216, 183, 91, .28);
+  --glow-teal: 0 0 8px rgba(71, 246, 230, .66), 0 0 24px rgba(47, 216, 203, .22);
+  --panel-shadow: 0 18px 50px rgba(0,0,0,.44), inset 0 0 32px rgba(47,216,203,.018);
+}
+
+html,
+body {
+  background: #030606;
+}
+
+body {
+  font-family: var(--iel-body);
+  font-size: 17px;
+  letter-spacing: .015em;
+  background:
+    linear-gradient(rgba(47,216,203,.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(47,216,203,.018) 1px, transparent 1px),
+    radial-gradient(circle at 13% 7%, rgba(47,216,203,.10), transparent 31rem),
+    radial-gradient(circle at 85% 7%, rgba(216,183,91,.095), transparent 34rem),
+    linear-gradient(180deg, #030606 0%, #050909 48%, #020404 100%);
+  background-size: 56px 56px, 56px 56px, auto, auto, auto;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(115deg, transparent 0 34%, rgba(47,216,203,.025) 34.15% 34.35%, transparent 34.5% 100%),
+    linear-gradient(65deg, transparent 0 71%, rgba(216,183,91,.022) 71.15% 71.35%, transparent 71.5% 100%);
+}
+
+/* Header / navigation */
+.topbar {
+  min-height: 84px;
+  border-bottom: 1px solid rgba(47,216,203,.20);
+  background: rgba(2, 6, 6, .94);
+  box-shadow: 0 8px 32px rgba(0,0,0,.46), 0 1px 18px rgba(47,216,203,.07);
+}
+
+.topbar::after {
+  content: "";
+  position: absolute;
+  left: 4vw;
+  right: 4vw;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--teal), var(--gold), transparent);
+  opacity: .55;
+  box-shadow: var(--glow-teal);
+}
+
+.brand-logo,
+.footer-brand img,
+.team-logo:not(.placeholder),
+.partner-logo {
+  filter:
+    drop-shadow(0 0 4px rgba(255,225,133,.88))
+    drop-shadow(0 0 11px rgba(216,183,91,.48))
+    drop-shadow(0 0 22px rgba(47,216,203,.17));
+}
+
+.brand-logo {
+  width: 56px;
+  height: 56px;
+}
+
+.brand-copy strong {
+  font-family: var(--iel-display);
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: .19em;
+  color: var(--gold-bright);
+  text-shadow: var(--glow-gold);
+}
+
+.brand-copy small {
+  font-family: var(--iel-body);
+  color: #aebdb9;
+  font-weight: 700;
+  letter-spacing: .19em;
+}
+
+.main-nav a {
+  font-family: var(--iel-body);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  color: #acb9b6;
+  text-shadow: 0 0 10px transparent;
+  transition: color .18s ease, text-shadow .18s ease;
+}
+
+.main-nav a:hover {
+  color: var(--teal-bright);
+  text-shadow: var(--glow-teal);
+}
+
+.main-nav a.active {
+  color: var(--gold-bright);
+  text-shadow: var(--glow-gold);
+}
+
+.main-nav a.active::after {
+  bottom: -17px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-bright), transparent);
+  box-shadow: var(--glow-gold);
+}
+
+.mobile-menu {
+  border-radius: 2px;
+  border-color: rgba(47,216,203,.27);
+  background: rgba(6,14,14,.94);
+  color: var(--teal-bright);
+  box-shadow: inset 0 0 18px rgba(47,216,203,.04), var(--glow-teal);
+}
+
+/* Buttons */
+.button {
+  min-height: 44px;
+  border-radius: 2px;
+  border-color: rgba(47,216,203,.23);
+  background: linear-gradient(180deg, rgba(12,22,22,.98), rgba(5,10,10,.98));
+  font-family: var(--iel-body);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .13em;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  box-shadow: inset 0 0 20px rgba(47,216,203,.025);
+}
+
+.button:hover {
+  border-color: rgba(111,255,241,.52);
+  color: var(--teal-bright);
+  box-shadow: inset 0 0 22px rgba(47,216,203,.055), 0 0 17px rgba(47,216,203,.12);
+}
+
+.button-gold {
+  color: #080b09;
+  background: linear-gradient(135deg, #ffea93 0%, #d2ad4b 56%, #8d6b22 100%);
+  border: 1px solid #f4d873;
+  box-shadow: 0 0 11px rgba(216,183,91,.28), inset 0 1px rgba(255,255,255,.36);
+}
+
+.button-gold:hover {
+  color: #050706;
+  border-color: #fff1aa;
+  box-shadow: 0 0 9px rgba(255,225,133,.78), 0 0 28px rgba(216,183,91,.28);
+}
+
+.button-teal {
+  color: #03100e;
+  background: linear-gradient(135deg, #83fff4 0%, #30c9bd 55%, #16766f 100%);
+  border: 1px solid #63f5e8;
+  box-shadow: 0 0 11px rgba(47,216,203,.24);
+}
+
+.button-teal:hover {
+  color: #020706;
+  box-shadow: 0 0 8px rgba(111,255,241,.82), 0 0 26px rgba(47,216,203,.30);
+}
+
+/* Global typography */
+.section-label,
+.card-kicker,
+.eyebrow,
+th,
+.badge,
+.match-meta,
+.stat-strip span,
+.hero-stat span {
+  font-family: var(--iel-body);
+  font-weight: 800;
+}
+
+.section-label,
+.card-kicker {
+  color: var(--teal-bright);
+  text-shadow: 0 0 7px rgba(47,216,203,.62), 0 0 18px rgba(47,216,203,.18);
+}
+
+.section-title,
+.card h3,
+.callout h3,
+.empty-state strong,
+.footer-brand strong,
+.match-score,
+.rank,
+.hero-stat strong,
+.stat-strip strong,
+.staff-panel h2,
+.staff-panel h3 {
+  font-family: var(--iel-display) !important;
+}
+
+.section-title {
+  position: relative;
+  display: inline-block;
+  color: #fffdf3;
+  letter-spacing: .025em;
+  text-shadow:
+    0 0 2px rgba(255,255,255,.92),
+    0 0 11px rgba(216,183,91,.32),
+    0 0 29px rgba(47,216,203,.12);
+}
+
+.section-title::after {
+  content: "";
+  display: block;
+  width: min(250px, 58%);
+  height: 2px;
+  margin-top: 15px;
+  background: linear-gradient(90deg, var(--gold-bright), var(--teal), transparent);
+  box-shadow: 0 0 9px rgba(255,225,133,.48), 0 0 18px rgba(47,216,203,.22);
+}
+
+.section-copy {
+  color: #9eada9;
+  font-size: 17px;
+  font-weight: 500;
+}
+
+/* Page header treatment */
+.page-heading {
+  position: relative;
+  overflow: hidden;
+  padding: 90px 0 46px;
+  border-bottom: 1px solid rgba(47,216,203,.18);
+  background:
+    linear-gradient(100deg, rgba(47,216,203,.08), transparent 38%),
+    radial-gradient(circle at 80% 20%, rgba(216,183,91,.08), transparent 30rem),
+    rgba(3,8,8,.76);
+  box-shadow: inset 0 -30px 70px rgba(0,0,0,.2);
+}
+
+.page-heading::before {
+  content: "IEL";
+  position: absolute;
+  right: 4vw;
+  bottom: -48px;
+  font: 800 clamp(120px, 19vw, 260px)/1 var(--iel-display);
+  letter-spacing: -.04em;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(47,216,203,.065);
+  text-shadow: 0 0 34px rgba(47,216,203,.05);
+  pointer-events: none;
+}
+
+.page-heading::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 33%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--teal-bright));
+  box-shadow: var(--glow-teal);
+}
+
+/* Homepage hero: keep new composition, apply original IEL visual language */
+.hero {
+  min-height: 700px;
+  border-bottom-color: rgba(47,216,203,.17);
+  background:
+    linear-gradient(90deg, rgba(1,4,4,.86) 0%, rgba(3,7,7,.62) 52%, rgba(4,9,9,.80) 100%),
+    radial-gradient(circle at 74% 45%, rgba(47,216,203,.085), transparent 25rem),
+    radial-gradient(circle at 90% 30%, rgba(216,183,91,.09), transparent 23rem);
+}
+
+.hero::before {
+  width: 640px;
+  height: 640px;
+  border: 1px solid rgba(47,216,203,.12);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 72px rgba(47,216,203,.018),
+    0 0 0 145px rgba(216,183,91,.012),
+    0 0 80px rgba(47,216,203,.06);
+}
+
+.hero::after {
+  font-family: var(--iel-display);
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(255,225,133,.055);
+  text-shadow: 0 0 32px rgba(216,183,91,.04);
+}
+
+.eyebrow {
+  color: var(--teal-bright);
+  text-shadow: var(--glow-teal);
+}
+
+.eyebrow::before {
+  width: 40px;
+  background: linear-gradient(90deg, transparent, var(--teal-bright));
+  box-shadow: var(--glow-teal);
+}
+
+.hero h1 {
+  font-family: var(--iel-display);
+  font-weight: 800;
+  letter-spacing: -.025em;
+  color: #fffef6;
+  text-shadow:
+    0 0 3px rgba(255,255,255,.9),
+    0 0 13px rgba(47,216,203,.20),
+    0 0 36px rgba(47,216,203,.08);
+}
+
+.hero h1 span {
+  color: var(--gold-bright);
+  text-shadow:
+    0 0 4px rgba(255,241,176,.96),
+    0 0 14px rgba(255,220,111,.62),
+    0 0 36px rgba(216,183,91,.26);
+}
+
+.hero .lead {
+  font-size: 19px;
+  color: #aebcb8;
+  font-weight: 500;
+}
+
+.hero .lead strong {
+  color: #f8faf4;
+  text-shadow: 0 0 12px rgba(47,216,203,.12);
+}
+
+.hero-stats {
+  border: 1px solid rgba(47,216,203,.20);
+  background: linear-gradient(180deg, rgba(9,17,17,.9), rgba(4,9,9,.94));
+  box-shadow: var(--panel-shadow), 0 0 24px rgba(47,216,203,.045);
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+}
+
+.hero-stat {
+  border-right-color: rgba(47,216,203,.13);
+}
+
+.hero-stat strong,
+.stat-strip strong {
+  color: var(--gold-bright);
+  text-shadow: var(--glow-gold);
+}
+
+/* Panels / cards */
+.card,
+.match-card,
+.table-wrap,
+.callout,
+.upload-zone,
+.staff-nav,
+.empty-state {
+  border-radius: 4px;
+  border-color: rgba(47,216,203,.17);
+  background:
+    linear-gradient(145deg, rgba(11,20,20,.95), rgba(4,8,8,.98));
+  box-shadow: var(--panel-shadow);
+}
+
+.card,
+.callout,
+.match-card,
+.upload-zone {
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+}
+
+.card::before,
+.callout::before,
+.match-card::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(47,216,203,.42), transparent 32%) top left / 80px 1px no-repeat,
+    linear-gradient(180deg, rgba(47,216,203,.34), transparent 32%) top left / 1px 70px no-repeat,
+    linear-gradient(270deg, rgba(216,183,91,.32), transparent 32%) bottom right / 80px 1px no-repeat,
+    linear-gradient(0deg, rgba(216,183,91,.26), transparent 32%) bottom right / 1px 70px no-repeat;
+  opacity: .65;
+}
+
+.card.gold,
+.callout {
+  border-color: rgba(255,218,111,.32);
+  box-shadow: var(--panel-shadow), 0 0 22px rgba(216,183,91,.055);
+}
+
+.card.teal,
+.upload-zone {
+  border-color: rgba(47,216,203,.31);
+  box-shadow: var(--panel-shadow), 0 0 22px rgba(47,216,203,.055);
+}
+
+.card h3,
+.callout h3 {
+  color: #f9faf4;
+  letter-spacing: .03em;
+  text-shadow: 0 0 12px rgba(47,216,203,.10);
+}
+
+.division-card::after {
+  font-family: var(--iel-display);
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(47,216,203,.065);
+}
+
+.step::before {
+  font-family: var(--iel-display);
+  color: var(--teal-bright);
+  text-shadow: var(--glow-teal);
+}
+
+.stat-strip {
+  border-color: rgba(47,216,203,.16);
+  background: linear-gradient(90deg, rgba(4,10,10,.95), rgba(11,17,16,.98), rgba(4,10,10,.95));
+  box-shadow: inset 0 0 35px rgba(47,216,203,.018);
+}
+
+.stat-strip > div {
+  border-right-color: rgba(47,216,203,.13);
+}
+
+/* Tabs / badges */
+.tab,
+.badge {
+  border-radius: 2px;
+  border-color: rgba(47,216,203,.18);
+  background: rgba(5,11,11,.72);
+  font-family: var(--iel-body);
+}
+
+.tab:hover {
+  color: var(--teal-bright);
+  border-color: rgba(47,216,203,.48);
+  text-shadow: var(--glow-teal);
+}
+
+.tab.active {
+  color: #0a0b08;
+  border-color: #f6d873;
+  background: linear-gradient(135deg, #ffe993, #cda746);
+  box-shadow: var(--glow-gold);
+}
+
+.badge.gold {
+  color: var(--gold-bright);
+  text-shadow: 0 0 8px rgba(216,183,91,.34);
+}
+
+.badge.teal {
+  color: var(--teal-bright);
+  text-shadow: 0 0 8px rgba(47,216,203,.34);
+}
+
+/* Teams / schedule / standings */
+.team-logo {
+  border-radius: 3px;
+  background: rgba(255,255,255,.018);
+}
+
+.team-logo.placeholder {
+  font-family: var(--iel-display);
+  color: var(--gold-bright);
+  border: 1px solid rgba(216,183,91,.2);
+  box-shadow: inset 0 0 14px rgba(216,183,91,.04);
+}
+
+.team-cell,
+.match-team {
+  font-family: var(--iel-body);
+  font-size: 15px;
+  letter-spacing: .035em;
+}
+
+.match-card {
+  position: relative;
+}
+
+.match-score {
+  color: var(--gold-bright);
+  text-shadow: var(--glow-gold);
+}
+
+.table-wrap {
+  border-color: rgba(47,216,203,.17);
+}
+
+th {
+  background: rgba(6,13,13,.98);
+  color: var(--teal-bright);
+  text-shadow: 0 0 7px rgba(47,216,203,.24);
+  border-bottom-color: rgba(47,216,203,.18);
+}
+
+th,
+td {
+  border-bottom-color: rgba(47,216,203,.09);
+}
+
+tr:hover td {
+  background: rgba(47,216,203,.024);
+}
+
+.rank {
+  color: var(--gold-bright);
+  text-shadow: var(--glow-gold);
+}
+
+/* Forms */
+.field label {
+  color: #d4ddda;
+  font-family: var(--iel-body);
+  font-size: 12px;
+  letter-spacing: .11em;
+}
+
+.field input,
+.field select,
+.field textarea {
+  border-radius: 2px;
+  border-color: rgba(47,216,203,.17);
+  background: rgba(2,7,7,.92);
+  color: #f4f7f5;
+  font-family: var(--iel-body);
+  font-size: 16px;
+  box-shadow: inset 0 0 20px rgba(47,216,203,.018);
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: rgba(104,255,241,.68);
+  box-shadow: 0 0 0 1px rgba(47,216,203,.11), 0 0 16px rgba(47,216,203,.11), inset 0 0 22px rgba(47,216,203,.03);
+}
+
+.player-number {
+  border-radius: 2px;
+  border-color: rgba(216,183,91,.24);
+  font-family: var(--iel-display);
+  color: var(--gold-bright);
+  background: rgba(216,183,91,.025);
+  text-shadow: var(--glow-gold);
+}
+
+/* Featured / partners */
+.feature-image {
+  border-bottom: 1px solid rgba(47,216,203,.15);
+  filter: saturate(.9) contrast(1.05);
+}
+
+.partner-logo {
+  max-height: 86px;
+}
+
+/* Staff Command gets same IEL skin */
+.staff-nav {
+  padding: 10px;
+  border-color: rgba(47,216,203,.20);
+}
+
+.staff-nav button {
+  border-radius: 2px;
+  font-family: var(--iel-body);
+  letter-spacing: .06em;
+}
+
+.staff-nav button.active,
+.staff-nav button:hover {
+  color: var(--gold-bright);
+  background: linear-gradient(90deg, rgba(216,183,91,.12), rgba(47,216,203,.025));
+  text-shadow: var(--glow-gold);
+  box-shadow: inset 2px 0 var(--gold);
+}
+
+.code {
+  border-radius: 2px;
+  border-color: rgba(47,216,203,.16);
+  background: #020606;
+}
+
+/* Loading / toast */
+.spinner {
+  border-color: rgba(47,216,203,.14);
+  border-top-color: var(--gold-bright);
+  box-shadow: 0 0 15px rgba(216,183,91,.24);
+}
+
+.toast {
+  border-radius: 3px;
+  border-color: rgba(47,216,203,.26);
+  background: rgba(5,12,12,.97);
+  box-shadow: var(--panel-shadow), 0 0 20px rgba(47,216,203,.08);
+}
+
+/* Footer */
+.footer {
+  border-top-color: rgba(47,216,203,.15);
+  background:
+    linear-gradient(180deg, rgba(3,8,8,.98), rgba(1,4,4,1));
+  box-shadow: inset 0 18px 40px rgba(47,216,203,.012);
+}
+
+.footer-brand strong {
+  color: #f8faf6;
+  letter-spacing: .06em;
+  text-shadow: 0 0 12px rgba(47,216,203,.12);
+}
+
+.footer-brand span {
+  color: var(--gold-bright);
+  text-shadow: var(--glow-gold);
+}
+
+.footer-links a:hover {
+  color: var(--teal-bright);
+  text-shadow: var(--glow-teal);
+}
+
+/* Responsive cleanup */
+@media (max-width: 1100px) {
+  .main-nav {
+    border-radius: 2px;
+    border-color: rgba(47,216,203,.25);
+    background: rgba(3,9,9,.98);
+    box-shadow: var(--panel-shadow), 0 0 20px rgba(47,216,203,.07);
+  }
+
+  .main-nav a.active,
+  .main-nav a:hover {
+    background: linear-gradient(90deg, rgba(47,216,203,.07), transparent);
+  }
+}
+
+@media (max-width: 600px) {
+  .brand-logo {
+    width: 46px;
+    height: 46px;
+  }
+
+  .hero h1 {
+    line-height: .88;
+  }
+
+  .section-title::after {
+    margin-top: 11px;
+  }
+
+  .card,
+  .callout,
+  .match-card,
+  .upload-zone {
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  }
+}
