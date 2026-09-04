@@ -75,8 +75,10 @@ function decorate() {
   const button = wrap.querySelector('[data-verify-without-stats]')
   if (!button) return
   const winnerId = declaredWinnerId(root)
-  button.disabled = busy || !winnerId
-  button.textContent = busy ? 'Verifying Result...' : 'Verify Without Stats'
+  const nextDisabled = busy || !winnerId
+  if (button.disabled !== nextDisabled) button.disabled = nextDisabled
+  const nextText = busy ? 'Verifying Result...' : 'Verify Without Stats'
+  if (button.textContent !== nextText) button.textContent = nextText
 }
 
 async function verifyWithoutStats() {
