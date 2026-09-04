@@ -116,7 +116,7 @@ Transcribe each gamer tag exactly as visible and strip any numeric player-slot p
 Return ONLY this compact JSON object and nothing else:
 {"m":"map","o":"Hardpoint|Search and Destroy|Overload","a":0,"b":0,"c":0.0,"w":[],"p":[["tag","A|B",0,0,0,0,0,0,0,0,0.0]]}
 The p row order is [tag,side,kills,deaths,damage,hillSeconds,firstBloods,plants,defuses,overloads,confidence].
-Return exactly 8 p rows, four A and four B. Scores a/b MUST follow canonical A/B above. Convert hill time MM:SS to seconds. For Hardpoint fill K/D/damage/hill. For Search and Destroy fill K/D/damage/firstBloods/plants/defuses. For Overload fill K/D/damage/overloads. Use 0 for mode-only fields not shown. Never invent unreadable values; use 0 and add one short warning to w. Confidence is 0..1.`
+Return one p row for every player actually visible on the scoreboard. Normally there are 8 rows, four A and four B. If a player disconnected before the screenshot and is not visible, DO NOT invent that player or their stats; return only the visible rows (6, 7, or 8 rows are valid) and add a short warning to w that a player appears missing/disconnected. Scores a/b MUST follow canonical A/B above. Convert hill time MM:SS to seconds. For Hardpoint fill K/D/damage/hill. For Search and Destroy fill K/D/damage/firstBloods/plants/defuses. For Overload fill K/D/damage/overloads. Use 0 for mode-only fields not shown. Never invent unreadable values; use 0 and add one short warning to w. Confidence is 0..1.`
 }
 
 function isCapacityError(error) {
@@ -211,20 +211,26 @@ function normalizeMode(value) {
   return String(value || '').trim()
 }
 
+function validVisibleRowCount(count) {
+  return Number.isInteger(count) && count >= 6 && count <= 8
+}
+
 function compactToLegacy(raw, context) {
   if (Array.isArray(raw?.players)) {
-    if (raw.players.length !== 8) throw new Error(`Vision model returned ${raw.players.length}/8 scoreboard player rows. Retry OCR on this screenshot.`)
+    if (!validVisibleRowCount(raw.players.length)) {
+      throw new Error(`Vision model returned ${raw.players.length}/8 scoreboard player rows. IEL can continue with 6-8 visible rows; otherwise Retry OCR.`)
+    }
     return raw
   }
 
-  if (!Array.isArray(raw?.p) || raw.p.length !== 8) {
-    throw new Error(`Vision model returned ${Array.isArray(raw?.p) ? raw.p.length : 0}/8 scoreboard player rows. Retry OCR on this screenshot.`)
+  if (!Array.isArray(raw?.p) || !validVisibleRowCount(raw.p.length)) {
+    throw new Error(`Vision model returned ${Array.isArray(raw?.p) ? raw.p.length : 0}/8 scoreboard player rows. IEL can continue with 6-8 visible rows; otherwise Retry OCR.`)
   }
 
   const players = raw.p.map((row) => {
     if (!Array.isArray(row)) throw new Error('Vision model returned a malformed scoreboard player row. Retry OCR.')
     const side = String(row[1] || '').trim().toUpperCase()
-    if (!['A', 'B'].includes(side)) throw new Error('Vision model could not assign all eight rows to Team A or Team B. Retry OCR.')
+    if (!['A', 'B'].includes(side)) throw new Error('Vision model could not assign all visible rows to Team A or Team B. Retry OCR.')
     const team = side === 'A' ? context.teamA : context.teamB
     const tag = String(row[0] || '').replace(/^[0-9]+\s+/, '').trim()
     if (!tag) throw new Error('Vision model returned a blank gamer tag. Retry OCR on this screenshot.')
