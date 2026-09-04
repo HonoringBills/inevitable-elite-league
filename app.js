@@ -6,6 +6,7 @@ import { bindStatsPage, renderStatsPage } from './js/stats.js'
 import { initStaffEnhancements } from './js/staff-enhancements.js'
 import { initSeriesRosterMemory } from './js/series-roster-memory.js'
 import { initApplyAllReview } from './js/apply-all-review.js'
+import { initVerifyWithoutStats } from './js/verify-without-stats.js'
 
 const app = document.getElementById('app')
 const nav = document.getElementById('main-nav')
@@ -53,6 +54,7 @@ async function renderRoute() {
     initStaffEnhancements()
     initSeriesRosterMemory()
     initApplyAllReview()
+    initVerifyWithoutStats()
   } else if (route === 'stats') {
     app.innerHTML = renderStatsPage()
     await bindStatsPage()
