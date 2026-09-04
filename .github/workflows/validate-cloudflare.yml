@@ -37,6 +37,7 @@ jobs:
           test -f dist/js/staff-enhancements.js
           test -f dist/js/series-roster-memory.js
           test -f dist/js/apply-all-review.js
+          test -f dist/js/verify-without-stats.js
           test -f src/worker.js
           test -f src/worker-entry.js
       - name: Validate Worker bundle
