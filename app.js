@@ -1,5 +1,6 @@
 import { loadPublicData, state, supabase, toast } from './js/core.js'
 import { bindPublicRoute, renderPublicRoute } from './js/public.js'
+import { bindRegistration } from './js/registration.js'
 import { bindStaffPage, prepareStaffPage, renderStaffPage } from './js/staff.js'
 
 const app = document.getElementById('app')
@@ -39,7 +40,8 @@ async function renderRoute() {
     bindStaffPage()
   } else {
     app.innerHTML = renderPublicRoute(route)
-    bindPublicRoute(route)
+    if (route === 'register') bindRegistration()
+    else bindPublicRoute(route)
   }
 
   const register = document.getElementById('header-register')
@@ -50,7 +52,7 @@ async function renderRoute() {
   }
 
   app.focus({ preventScroll: true })
-  window.scrollTo({ top: 0, behavior: 'instant' })
+  window.scrollTo({ top: 0, behavior: 'auto' })
 }
 
 async function bootstrap() {
