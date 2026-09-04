@@ -21,6 +21,31 @@ function heading() {
 export function renderStatsPage() {
   return `
     <div class="page">
+      <style>
+        #stats-page-content .iel-stats-team-link {
+          position: relative;
+          outline: 1px solid transparent;
+          transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, filter .18s ease;
+        }
+        #stats-page-content .iel-stats-team-link:hover,
+        #stats-page-content .iel-stats-team-link:focus-visible {
+          transform: translateY(-4px);
+          border-color: var(--gold-bright);
+          outline-color: rgba(120,255,242,.30);
+          box-shadow:
+            0 0 0 1px rgba(255,225,133,.52),
+            0 0 14px rgba(216,183,91,.62),
+            0 0 30px rgba(47,216,203,.28),
+            0 18px 42px rgba(0,0,0,.50),
+            inset 0 0 22px rgba(47,216,203,.06);
+          filter: brightness(1.06);
+        }
+        #stats-page-content .iel-stats-team-link:hover h3,
+        #stats-page-content .iel-stats-team-link:focus-visible h3 {
+          color: var(--gold-bright);
+          text-shadow: var(--glow-gold);
+        }
+      </style>
       ${heading()}
       <section class="section">
         <div class="container">
@@ -65,7 +90,7 @@ function teamStatsHref(teamId) {
 
 function teamCards(rows) {
   return `<div class="grid grid-3">${rows.map((row) => `
-    <a class="card gold" href="${teamStatsHref(row.team_id)}" data-stats-team="${esc(row.team_id)}" style="display:block;color:inherit;text-decoration:none;cursor:pointer">
+    <a class="card gold iel-stats-team-link" href="${teamStatsHref(row.team_id)}" data-stats-team="${esc(row.team_id)}" style="display:block;color:inherit;text-decoration:none;cursor:pointer">
       <div class="team-card-head">
         ${teamLogo(row)}
         <div><span class="badge gold">Stats Perk</span><h3>${esc(row.team_name)}</h3><small>${esc(row.division)}</small></div>
