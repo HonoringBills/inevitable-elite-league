@@ -4,6 +4,7 @@ import { bindRegistration } from './js/registration.js'
 import { bindStaffPage, prepareStaffPage, renderStaffPage } from './js/staff.js'
 import { bindStatsPage, renderStatsPage } from './js/stats.js'
 import { initStaffEnhancements } from './js/staff-enhancements.js'
+import { initSeriesRosterMemory } from './js/series-roster-memory.js'
 
 const app = document.getElementById('app')
 const nav = document.getElementById('main-nav')
@@ -49,6 +50,7 @@ async function renderRoute() {
     app.innerHTML = renderStaffPage()
     bindStaffPage()
     initStaffEnhancements()
+    initSeriesRosterMemory()
   } else if (route === 'stats') {
     app.innerHTML = renderStatsPage()
     await bindStatsPage()
