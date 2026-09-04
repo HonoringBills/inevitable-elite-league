@@ -20,6 +20,10 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: '24'
+      - name: JavaScript syntax check
+        run: |
+          node --check app.js
+          for file in js/*.js src/*.js; do node --check "$file"; done
       - name: Build static assets
         run: npm run build
       - name: Verify output
