@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#070909" />
+  <meta name="description" content="Inevitable Elite League — compete, qualify, conquer." />
+  <title>Inevitable Elite League</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="site-shell">
+    <header class="topbar">
+      <a class="brand" href="#home" aria-label="IEL Home">
+        <img id="brand-logo" class="brand-logo" alt="IEL logo" />
+        <span class="brand-copy">
+          <strong>IEL</strong>
+          <small>Inevitable Elite League</small>
+        </span>
+      </a>
+
+      <button id="mobile-menu" class="mobile-menu" type="button" aria-label="Toggle navigation" aria-expanded="false">☰</button>
+
+      <nav id="main-nav" class="main-nav" aria-label="Main navigation">
+        <a href="#home">Home</a>
+        <a href="#qualifiers">Qualifiers</a>
+        <a href="#majors">Majors</a>
+        <a href="#schedule">Schedule</a>
+        <a href="#teams">Teams</a>
+        <a href="#standings">Standings</a>
+        <a href="#featured">Featured</a>
+        <a href="#sponsors">Partners</a>
+        <a href="#champions">Champions</a>
+      </nav>
+
+      <a id="header-register" class="button button-gold compact" href="#register">Register</a>
+    </header>
+
+    <main id="app" tabindex="-1">
+      <section class="loading-screen">
+        <div class="spinner"></div>
+        <p>Connecting to IEL Command...</p>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-brand">
+        <img id="footer-logo" alt="IEL logo" />
+        <div>
+          <strong>Inevitable Elite League</strong>
+          <span>COMPETE. QUALIFY. CONQUER.</span>
+        </div>
+      </div>
+      <div class="footer-links">
+        <a href="#home">Home</a>
+        <a href="#schedule">Schedule</a>
+        <a href="#standings">Standings</a>
+        <a href="#register">Register</a>
+        <a id="footer-discord" href="#" target="_blank" rel="noopener noreferrer">Discord</a>
+        <a href="#staff">Staff</a>
+      </div>
+      <p>© 2026 Inevitable Elite League. All Rights Reserved.</p>
+    </footer>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
