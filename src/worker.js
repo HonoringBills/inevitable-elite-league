@@ -112,10 +112,70 @@ function numericConfidence(value) {
 
 function normalizeName(value) {
   return String(value || '')
-    .normalize('NFKC')
+    .replace(/ø/gi, 'o')
+    .replace(/æ/gi, 'ae')
+    .replace(/œ/gi, 'oe')
+    .replace(/ß/gi, 'ss')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLocaleLowerCase('en-US')
     .replace(/^[0-9]+\s+/, '')
-    .replace(/[^\p{L}\p{N}]+/gu, '')
+    .replace(/\$/g, 's')
+    .replace(/@/g, 'a')
+    .replace(/[^a-z0-9]+/g, '')
+}
+
+function looseName(value) {
+  return normalizeName(value)
+    .replace(/0/g, 'o')
+    .replace(/5/g, 's')
+    .replace(/3/g, 'e')
+    .replace(/1/g, 'i')
+}
+
+function editDistance(a, b) {
+  const left = String(a || '')
+  const right = String(b || '')
+  if (left === right) return 0
+  if (!left.length) return right.length
+  if (!right.length) return left.length
+  let previous = Array.from({ length: right.length + 1 }, (_, index) => index)
+  for (let i = 1; i <= left.length; i += 1) {
+    const current = [i]
+    for (let j = 1; j <= right.length; j += 1) {
+      const cost = left[i - 1] === right[j - 1] ? 0 : 1
+      current[j] = Math.min(
+        current[j - 1] + 1,
+        previous[j] + 1,
+        previous[j - 1] + cost,
+      )
+    }
+    previous = current
+  }
+  return previous[right.length]
+}
+
+function fuzzyRosterMatch(value, roster, teamId, seen) {
+  const key = looseName(value)
+  if (key.length < 4) return null
+  const candidates = roster
+    .filter((player) => player.rosterRole !== 'e_sub')
+    .filter((player) => !seen.has(String(player.playerId)))
+    .filter((player) => !teamId || String(player.teamId) === String(teamId))
+    .map((player) => {
+      const names = [player.displayName, String(player.activisionId || '').split('#')[0]].map(looseName).filter(Boolean)
+      const distance = names.length ? Math.min(...names.map((name) => editDistance(key, name))) : 99
+      const longest = Math.max(key.length, ...names.map((name) => name.length), 1)
+      return { player, distance, similarity: 1 - (distance / longest) }
+    })
+    .filter((candidate) => candidate.distance <= (key.length >= 8 ? 2 : 1))
+    .sort((a, b) => b.similarity - a.similarity || a.distance - b.distance)
+
+  const best = candidates[0]
+  if (!best || best.similarity < 0.78) return null
+  const second = candidates[1]
+  if (second && best.similarity - second.similarity < 0.08) return null
+  return best.player
 }
 
 function normalizeMode(value) {
@@ -159,6 +219,25 @@ async function loadMatchContext(env, token, matchId) {
     activisionId: member.activision_id || null,
     rosterRole: member.roster_role || null,
   }))
+
+  roster.push(
+    {
+      playerId: `esub:${teamA.id}`,
+      teamId: teamA.id,
+      teamName: teamA.team_name,
+      displayName: `${teamA.team_name} E-Sub`,
+      activisionId: null,
+      rosterRole: 'e_sub',
+    },
+    {
+      playerId: `esub:${teamB.id}`,
+      teamId: teamB.id,
+      teamName: teamB.team_name,
+      displayName: `${teamB.team_name} E-Sub`,
+      activisionId: null,
+      rosterRole: 'e_sub',
+    },
+  )
 
   return { match, teamA, teamB, roster }
 }
@@ -243,10 +322,13 @@ function canonicalizeExtraction(raw, context) {
   const { match, teamA, teamB, roster } = context
   const rosterById = new Map(roster.map((player) => [String(player.playerId), player]))
   const rosterByName = new Map()
+  const rosterByLooseName = new Map()
   for (const player of roster) {
     for (const candidate of [player.displayName, String(player.activisionId || '').split('#')[0]]) {
       const key = normalizeName(candidate)
+      const looseKey = looseName(candidate)
       if (key) rosterByName.set(key, player)
+      if (looseKey) rosterByLooseName.set(looseKey, player)
     }
   }
 
@@ -254,8 +336,28 @@ function canonicalizeExtraction(raw, context) {
   const warnings = Array.isArray(raw?.warnings) ? raw.warnings.map(String) : []
   const players = (Array.isArray(raw?.players) ? raw.players : []).slice(0, 12).map((row) => {
     const extractedName = String(row?.extractedName || row?.playerName || '').replace(/^[0-9]+\s+/, '').trim()
+    const rowTeamId = [String(teamA.id), String(teamB.id)].includes(String(row?.teamId || '')) ? String(row.teamId) : ''
     let matched = rosterById.get(String(row?.playerId || '')) || null
-    if (!matched) matched = rosterByName.get(normalizeName(row?.playerName)) || rosterByName.get(normalizeName(extractedName)) || null
+
+    if (!matched) {
+      const exactCandidates = [row?.playerName, extractedName]
+        .map(normalizeName)
+        .filter(Boolean)
+        .map((key) => rosterByName.get(key))
+        .filter(Boolean)
+      matched = exactCandidates.find((candidate) => !rowTeamId || String(candidate.teamId) === rowTeamId) || null
+    }
+
+    if (!matched) {
+      const looseCandidates = [row?.playerName, extractedName]
+        .map(looseName)
+        .filter(Boolean)
+        .map((key) => rosterByLooseName.get(key))
+        .filter(Boolean)
+      matched = looseCandidates.find((candidate) => !rowTeamId || String(candidate.teamId) === rowTeamId) || null
+    }
+
+    if (!matched) matched = fuzzyRosterMatch(extractedName || row?.playerName, roster, rowTeamId, seen)
     if (matched && seen.has(String(matched.playerId))) matched = null
     if (matched) seen.add(String(matched.playerId))
 
@@ -286,7 +388,7 @@ function canonicalizeExtraction(raw, context) {
   const teamACount = players.filter((player) => String(player.teamId) === String(match.team_a_id)).length
   const teamBCount = players.filter((player) => String(player.teamId) === String(match.team_b_id)).length
   if (players.length !== 8) warnings.push(`Expected 8 player rows; Qwen returned ${players.length}.`)
-  if (matchedCount !== 8) warnings.push(`Only ${matchedCount}/8 rows matched the active IEL roster. Review player assignments before Apply Map.`)
+  if (matchedCount !== 8) warnings.push(`Only ${matchedCount}/8 rows matched a registered player or team E-Sub slot. Review player assignments before Apply Map.`)
   if (teamACount !== 4 || teamBCount !== 4) warnings.push(`Expected four players per team; currently Team A=${teamACount}, Team B=${teamBCount}.`)
 
   return {
@@ -436,7 +538,7 @@ async function handleCommit(request, env) {
     if (existing) throw apiError(409, `Map ${mapNumber} has already been applied to this match.`)
 
     const extraction = canonicalizeExtraction(body.extraction || {}, context)
-    if (!extraction.canApply) throw apiError(400, 'Match all eight scoreboard rows to the active IEL rosters before applying.')
+    if (!extraction.canApply) throw apiError(400, 'Match all eight scoreboard rows to a registered player or team E-Sub slot before applying.')
     if (!extraction.mapName) throw apiError(400, 'Enter the map name before applying.')
     if (!extraction.modeName) throw apiError(400, 'Choose Hardpoint, Search and Destroy, or Overload before applying.')
     if (extraction.teamAScore === extraction.teamBScore) throw apiError(400, 'Map scores cannot be tied.')
@@ -467,7 +569,7 @@ async function handleCommit(request, env) {
       .filter((player) => trackedTeamIds.has(String(player.teamId)))
       .map((player) => ({
         map_report_id: report.id,
-        team_member_id: player.playerId || null,
+        team_member_id: isUuid(player.playerId) ? player.playerId : null,
         team_id: player.teamId,
         player_name: player.playerName,
         kills: cappedInt(player.kills, 250, `${player.playerName} kills`),
