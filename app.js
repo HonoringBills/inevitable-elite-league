@@ -13,11 +13,19 @@ const publicRoutes = new Set([
 ])
 
 function resolveRoute() {
+  const hash = window.location.hash.replace(/^#/, '').toLowerCase().trim()
+
+  // Explicit hash navigation always wins. This keeps normal site links working
+  // after Discord OAuth returns through ?page=staff.
+  if (hash === 'staff') return 'staff'
+  if (publicRoutes.has(hash)) return hash
+
+  // The query-string route exists only as an OAuth return fallback when there
+  // is no explicit hash route yet.
   const params = new URLSearchParams(window.location.search)
   if (params.get('page') === 'staff') return 'staff'
-  const hash = window.location.hash.replace(/^#/, '').toLowerCase().trim()
-  if (hash === 'staff') return 'staff'
-  return publicRoutes.has(hash) ? hash : 'home'
+
+  return 'home'
 }
 
 function updateNavigation(route) {
