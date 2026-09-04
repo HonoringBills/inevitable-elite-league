@@ -42,7 +42,10 @@ jobs:
           test -f dist/js/series-roster-memory.js
           test -f dist/js/apply-all-review.js
           test -f dist/js/verify-without-stats.js
+          test -f dist/js/discord-test.js
           test -f src/worker.js
           test -f src/worker-entry.js
+          test -f src/worker-router.js
+          test -f src/discord-test.js
       - name: Validate Worker bundle
         run: npx wrangler@4.120.0 deploy --dry-run
