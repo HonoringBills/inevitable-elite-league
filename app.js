@@ -2,13 +2,15 @@ import { loadPublicData, state, supabase, toast } from './js/core.js'
 import { bindPublicRoute, renderPublicRoute } from './js/public.js'
 import { bindRegistration } from './js/registration.js'
 import { bindStaffPage, prepareStaffPage, renderStaffPage } from './js/staff.js'
+import { bindStatsPage, renderStatsPage } from './js/stats.js'
+import { initStaffEnhancements } from './js/staff-enhancements.js'
 
 const app = document.getElementById('app')
 const nav = document.getElementById('main-nav')
 const mobileMenu = document.getElementById('mobile-menu')
 
 const publicRoutes = new Set([
-  'home', 'qualifiers', 'majors', 'schedule', 'teams', 'standings',
+  'home', 'qualifiers', 'majors', 'schedule', 'teams', 'standings', 'stats',
   'featured', 'sponsors', 'champions', 'register', 'merch', 'promo', 'leaderboard',
 ])
 
@@ -46,6 +48,10 @@ async function renderRoute() {
     await prepareStaffPage()
     app.innerHTML = renderStaffPage()
     bindStaffPage()
+    initStaffEnhancements()
+  } else if (route === 'stats') {
+    app.innerHTML = renderStatsPage()
+    await bindStatsPage()
   } else {
     app.innerHTML = renderPublicRoute(route)
     if (route === 'register') bindRegistration()
