@@ -215,19 +215,67 @@ function validVisibleRowCount(count) {
   return Number.isInteger(count) && count >= 6 && count <= 8
 }
 
+function missingPlayerRow(team) {
+  return {
+    playerId: '',
+    playerName: 'Disconnected / Missing Player',
+    extractedName: '',
+    teamId: team.id,
+    teamName: team.name,
+    kills: 0,
+    deaths: 0,
+    damage: 0,
+    hillTimeSeconds: 0,
+    firstBloods: 0,
+    plants: 0,
+    defuses: 0,
+    overloads: 0,
+    confidence: null,
+  }
+}
+
+function padDisconnectedRows(players, context, warnings) {
+  const visibleCount = players.length
+  const teamACount = players.filter((player) => String(player.teamId) === String(context.teamA.id)).length
+  const teamBCount = players.filter((player) => String(player.teamId) === String(context.teamB.id)).length
+
+  if (teamACount > 4 || teamBCount > 4) {
+    throw new Error(`Vision model assigned too many visible rows to one team (A=${teamACount}, B=${teamBCount}). Retry OCR.`)
+  }
+
+  const missingA = 4 - teamACount
+  const missingB = 4 - teamBCount
+  if (missingA + missingB !== 8 - visibleCount) {
+    throw new Error(`Vision model returned ${visibleCount} visible rows but team-side assignments are inconsistent (A=${teamACount}, B=${teamBCount}). Retry OCR.`)
+  }
+
+  const padded = [...players]
+  for (let index = 0; index < missingA; index += 1) padded.push(missingPlayerRow(context.teamA))
+  for (let index = 0; index < missingB; index += 1) padded.push(missingPlayerRow(context.teamB))
+
+  if (visibleCount < 8) {
+    const missing = 8 - visibleCount
+    warnings.push(`${missing} player${missing === 1 ? '' : 's'} not visible on the final scoreboard. IEL added ${missing} disconnected/missing placeholder${missing === 1 ? '' : 's'} for Staff mapping; missing stats start at 0 and can be edited before Apply Map.`)
+  }
+  return padded
+}
+
 function compactToLegacy(raw, context) {
   if (Array.isArray(raw?.players)) {
     if (!validVisibleRowCount(raw.players.length)) {
       throw new Error(`Vision model returned ${raw.players.length}/8 scoreboard player rows. IEL can continue with 6-8 visible rows; otherwise Retry OCR.`)
     }
-    return raw
+    const warnings = Array.isArray(raw?.warnings) ? raw.warnings.map(String) : []
+    const players = padDisconnectedRows(raw.players, context, warnings)
+    return { ...raw, warnings, players }
   }
 
   if (!Array.isArray(raw?.p) || !validVisibleRowCount(raw.p.length)) {
     throw new Error(`Vision model returned ${Array.isArray(raw?.p) ? raw.p.length : 0}/8 scoreboard player rows. IEL can continue with 6-8 visible rows; otherwise Retry OCR.`)
   }
 
-  const players = raw.p.map((row) => {
+  const warnings = Array.isArray(raw?.w) ? raw.w.map(String) : []
+  const visiblePlayers = raw.p.map((row) => {
     if (!Array.isArray(row)) throw new Error('Vision model returned a malformed scoreboard player row. Retry OCR.')
     const side = String(row[1] || '').trim().toUpperCase()
     if (!['A', 'B'].includes(side)) throw new Error('Vision model could not assign all visible rows to Team A or Team B. Retry OCR.')
@@ -251,6 +299,7 @@ function compactToLegacy(raw, context) {
       confidence: row[10] ?? raw.c ?? null,
     }
   })
+  const players = padDisconnectedRows(visiblePlayers, context, warnings)
 
   return {
     mapName: String(raw?.m || '').trim(),
@@ -258,7 +307,7 @@ function compactToLegacy(raw, context) {
     teamAScore: raw?.a ?? 0,
     teamBScore: raw?.b ?? 0,
     confidence: raw?.c ?? null,
-    warnings: Array.isArray(raw?.w) ? raw.w.map(String) : [],
+    warnings,
     players,
   }
 }
