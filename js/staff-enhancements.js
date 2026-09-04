@@ -35,6 +35,10 @@ function teamName(match, id) {
   return 'Unknown team'
 }
 
+function maxMapSlots() {
+  return Math.min(7, Number(reportState?.match?.best_of || 5))
+}
+
 function createQueueItem(file, mapNumber) {
   return {
     id: crypto.randomUUID(),
@@ -117,6 +121,7 @@ function queueCard(item) {
   const extraction = item.extraction
   const warnings = extraction?.warnings || []
   const canApply = validateExtraction(item)
+  const slotLocked = !['ready', 'error'].includes(item.status) || Boolean(item.uploadId)
   return `
     <article class="iel-ocr-map-card" data-ocr-card="${item.id}">
       <div class="iel-ocr-map-top">
@@ -127,6 +132,14 @@ function queueCard(item) {
             <span class="badge ${item.status === 'applied' ? 'success' : item.status === 'error' ? 'danger' : item.status === 'review' ? 'gold' : 'teal'}">${esc(statusText(item.status))}</span>
           </div>
           <p>${extraction ? confidenceLabel(extraction.confidence) : 'Waiting for Qwen vision extraction.'}</p>
+          <div class="iel-map-slot-control">
+            <label>Map Slot
+              <select data-ocr-item="${item.id}" data-ocr-map-slot ${slotLocked ? 'disabled' : ''}>
+                ${Array.from({ length: maxMapSlots() }, (_, index) => index + 1).map((slot) => `<option value="${slot}" ${Number(item.mapNumber) === slot ? 'selected' : ''}>Map ${slot}</option>`).join('')}
+              </select>
+            </label>
+            <small>${slotLocked ? 'Map slot locks once OCR analysis starts.' : 'Wrong order? Choose another slot. If occupied, IEL swaps the two screenshots.'}</small>
+          </div>
           ${item.error ? `<div class="iel-ocr-alert danger">${esc(item.error)}</div>` : ''}
           ${warnings.length ? `<div class="iel-ocr-alert">${warnings.map((warning) => `<div>• ${esc(warning)}</div>`).join('')}</div>` : ''}
           <div class="admin-actions">
@@ -160,6 +173,7 @@ function renderReportOverlay() {
   const winnerLocked = Boolean(reportState.declaredWinnerTeamId)
   const analyzable = reportState.queue.filter((item) => ['ready', 'error'].includes(item.status)).length
   const applied = reportState.queue.filter((item) => item.status === 'applied').length
+  const orderedQueue = [...reportState.queue].sort((a, b) => Number(a.mapNumber) - Number(b.mapNumber))
   overlay.innerHTML = `
     <div class="iel-report-backdrop" data-ocr-action="close"></div>
     <section class="iel-report-workspace" role="dialog" aria-modal="true" aria-label="IEL Match Reporting">
@@ -189,7 +203,7 @@ function renderReportOverlay() {
           <span class="iel-step-number">02</span>
           <div style="width:100%">
             <div class="admin-toolbar" style="margin:0 0 12px">
-              <div><h3>Upload the Series Scoreboards</h3><p>Upload PNG, JPG or WEBP screenshots. IEL assigns them to open map slots, then Qwen extracts scores and player stats for Staff review.</p></div>
+              <div><h3>Upload the Series Scoreboards</h3><p>Upload PNG, JPG or WEBP screenshots. IEL assigns them to open map slots, then Qwen extracts scores and player stats for Staff review. You can reorder map slots before analysis.</p></div>
               <div class="admin-actions">
                 <label class="button button-teal compact ${winnerLocked ? '' : 'disabled'}">Upload Scoreboards<input id="iel-ocr-files" type="file" accept="image/png,image/jpeg,image/webp" multiple ${winnerLocked ? '' : 'disabled'} hidden /></label>
                 ${reportState.queue.length ? `<button class="button button-gold compact" type="button" data-ocr-action="analyze-all" ${analyzable && winnerLocked && !reportState.busy ? '' : 'disabled'}>${reportState.busy ? 'Analyzing...' : `Analyze All (${analyzable})`}</button>` : ''}
@@ -197,7 +211,7 @@ function renderReportOverlay() {
             </div>
             ${!ocrApiBase() ? `<div class="iel-ocr-alert danger"><strong>OCR backend not connected yet.</strong> The UI is ready, but Staff must connect the Cloudflare Worker URL before Qwen analysis can run from the GitHub Pages test site.</div>` : ''}
             ${reportState.message ? `<div class="iel-ocr-alert ${reportState.messageType === 'error' ? 'danger' : reportState.messageType === 'success' ? 'success' : ''}">${esc(reportState.message)}</div>` : ''}
-            <div class="iel-ocr-queue">${reportState.queue.length ? reportState.queue.map(queueCard).join('') : '<div class="empty-state"><strong>No scoreboards queued</strong><span>Choose the series winner, then upload the completed map screenshots.</span></div>'}</div>
+            <div class="iel-ocr-queue">${orderedQueue.length ? orderedQueue.map(queueCard).join('') : '<div class="empty-state"><strong>No scoreboards queued</strong><span>Choose the series winner, then upload the completed map screenshots.</span></div>'}</div>
           </div>
         </section>
 
@@ -245,12 +259,12 @@ function addFiles(fileList) {
     return
   }
   const files = [...(fileList || [])].filter((file) => ['image/png', 'image/jpeg', 'image/webp'].includes(file.type))
-  const maxMaps = Math.min(7, Number(reportState.match.best_of || 5))
+  const maxMaps = maxMapSlots()
   const used = new Set(reportState.queue.map((item) => Number(item.mapNumber)))
   const slots = Array.from({ length: maxMaps }, (_, index) => index + 1).filter((slot) => !used.has(slot))
   const additions = files.slice(0, slots.length).map((file, index) => createQueueItem(file, slots[index]))
   reportState.queue.push(...additions)
-  reportState.message = additions.length ? `${additions.length} scoreboard${additions.length === 1 ? '' : 's'} queued.` : 'No valid PNG, JPG or WEBP images were added.'
+  reportState.message = additions.length ? `${additions.length} scoreboard${additions.length === 1 ? '' : 's'} queued. Check the Map Slot on each screenshot before OCR.` : 'No valid PNG, JPG or WEBP images were added.'
   reportState.messageType = additions.length ? '' : 'error'
   renderReportOverlay()
 }
@@ -316,7 +330,9 @@ async function analyzeItem(item, quiet = false) {
 }
 
 async function analyzeAll() {
-  const candidates = reportState.queue.filter((item) => ['ready', 'error'].includes(item.status))
+  const candidates = [...reportState.queue]
+    .filter((item) => ['ready', 'error'].includes(item.status))
+    .sort((a, b) => Number(a.mapNumber) - Number(b.mapNumber))
   if (!candidates.length || reportState.busy) return
   reportState.busy = true
   reportState.message = `Analyzing ${candidates.length} scoreboard${candidates.length === 1 ? '' : 's'} with Qwen 3.8...`
@@ -383,6 +399,39 @@ function removeItem(id) {
   renderReportOverlay()
 }
 
+function updateMapSlot(element) {
+  if (!reportState) return
+  const item = reportState.queue.find((entry) => entry.id === element.dataset.ocrItem)
+  if (!item) return
+
+  const previous = Number(item.mapNumber)
+  const next = Number(element.value)
+  if (!Number.isInteger(next) || next < 1 || next > maxMapSlots() || previous === next) return
+
+  if (!['ready', 'error'].includes(item.status) || item.uploadId) {
+    reportState.message = `Map ${previous} is already tied to an OCR audit. Its slot can no longer be changed.`
+    reportState.messageType = 'error'
+    renderReportOverlay()
+    return
+  }
+
+  const occupied = reportState.queue.find((entry) => entry.id !== item.id && Number(entry.mapNumber) === next)
+  if (occupied && (!['ready', 'error'].includes(occupied.status) || occupied.uploadId)) {
+    reportState.message = `Map ${next} has already started OCR review, so IEL will not swap it.`
+    reportState.messageType = 'error'
+    renderReportOverlay()
+    return
+  }
+
+  if (occupied) occupied.mapNumber = previous
+  item.mapNumber = next
+  reportState.message = occupied
+    ? `Swapped screenshot slots: Map ${previous} ↔ Map ${next}.`
+    : `${item.file?.name || 'Scoreboard'} moved to Map ${next}.`
+  reportState.messageType = 'success'
+  renderReportOverlay()
+}
+
 function updatePlayerField(element) {
   const item = reportState.queue.find((entry) => entry.id === element.dataset.ocrItem)
   if (!item?.extraction) return
@@ -421,8 +470,13 @@ async function toggleStatsPerk(teamId) {
   const result = await supabase.from('teams').update({ stats_perk_enabled: next }).eq('id', team.id)
   if (result.error) return toast(result.error.message, 'error')
   team.stats_perk_enabled = next
+  const button = document.querySelector(`[data-staff-action="toggle-stats-perk"][data-id="${team.id}"]`)
+  if (button) {
+    button.classList.toggle('button-gold', next)
+    button.classList.toggle('button-ghost', !next)
+    button.textContent = next ? 'Stats Perk: ON' : 'Enable Stats Perk'
+  }
   toast(`${team.team_name}: Stats Perk ${next ? 'enabled' : 'disabled'}.`, 'success')
-  decorateStaff()
 }
 
 async function saveOcrApi() {
@@ -532,7 +586,8 @@ function captureClick(event) {
 function captureChange(event) {
   const element = event.target
   if (!(element instanceof HTMLInputElement || element instanceof HTMLSelectElement)) return
-  if (element.dataset.playerField) updatePlayerField(element)
+  if (element.dataset.ocrMapSlot !== undefined) updateMapSlot(element)
+  else if (element.dataset.playerField) updatePlayerField(element)
   else if (element.dataset.mapField) updateMapField(element)
 }
 
