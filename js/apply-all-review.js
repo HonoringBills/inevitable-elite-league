@@ -33,14 +33,17 @@ function hideAppliedCards() {
 
   const queue = root.querySelector('.iel-ocr-queue')
   if (!queue) return
-  queue.querySelector('[data-all-maps-applied]')?.remove()
+  const allApplied = cards.length > 0 && cards.every((card) => card.hidden || isAppliedCard(card))
+  const existing = queue.querySelector('[data-all-maps-applied]')
 
-  if (cards.length && cards.every((card) => card.hidden || isAppliedCard(card))) {
+  if (allApplied && !existing) {
     const done = document.createElement('div')
     done.className = 'empty-state'
     done.dataset.allMapsApplied = 'true'
     done.innerHTML = '<strong>All reviewed maps applied.</strong><span>Successful maps are hidden from the active review queue.</span>'
     queue.appendChild(done)
+  } else if (!allApplied && existing) {
+    existing.remove()
   }
 }
 
@@ -77,8 +80,10 @@ function decorateApplyAll() {
     host.appendChild(button)
   }
 
-  button.disabled = applyingAll || count === 0
-  button.textContent = applyingAll ? 'Applying Maps...' : `Apply All (${count})`
+  const nextDisabled = applyingAll || count === 0
+  if (button.disabled !== nextDisabled) button.disabled = nextDisabled
+  const nextText = applyingAll ? 'Applying Maps...' : `Apply All (${count})`
+  if (button.textContent !== nextText) button.textContent = nextText
 }
 
 function waitForSettlement(itemId, timeoutMs = 25000) {
