@@ -94,6 +94,38 @@ body.iel-report-open { overflow: hidden; }
 .iel-ocr-map-info h3 { margin: 0; font: 700 20px Orbitron, sans-serif; text-transform: uppercase; }
 .iel-ocr-map-info p { margin: 8px 0; color: var(--muted); }
 
+.iel-map-slot-control {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  margin: 12px 0 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(39,183,172,.2);
+  background: rgba(39,183,172,.045);
+}
+
+.iel-map-slot-control label {
+  display: grid;
+  gap: 5px;
+  min-width: 130px;
+  color: #9ee7df;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.iel-map-slot-control select {
+  min-height: 38px;
+  border: 1px solid rgba(39,183,172,.38);
+  border-radius: 3px;
+  background: #08100f;
+  color: #fff;
+  padding: 7px 9px;
+}
+
+.iel-map-slot-control small { color: #74817e; line-height: 1.35; padding-bottom: 2px; }
+
 .iel-ocr-alert {
   margin: 12px 0;
   padding: 12px 14px;
@@ -167,4 +199,5 @@ body.iel-report-open { overflow: hidden; }
   .iel-ocr-preview { max-height: 190px; }
   .iel-ocr-applybar { align-items: flex-start; flex-direction: column; }
   .iel-ocr-map-fields { grid-template-columns: 1fr; }
+  .iel-map-slot-control { align-items: stretch; flex-direction: column; }
 }
