@@ -2,6 +2,7 @@ import { state, supabase, toast } from './core.js'
 
 let initialized = false
 let observer = null
+let decorateQueued = false
 let bulkBusy = false
 const channelUrls = new Map()
 
@@ -43,6 +44,12 @@ function activeMatchIds() {
     .filter(Boolean)
 }
 
+function setButtonState(button, { disabled, text }) {
+  if (!button) return
+  if (button.disabled !== Boolean(disabled)) button.disabled = Boolean(disabled)
+  if (button.textContent !== text) button.textContent = text
+}
+
 function decorateBulkControl() {
   const generator = document.getElementById('schedule-generator')
   const matchList = document.querySelector('.match-list')
@@ -69,8 +76,10 @@ function decorateBulkControl() {
   const button = panel.querySelector('[data-discord-generate-all]')
   const matchCount = activeMatchIds().length
   if (button && !bulkBusy) {
-    button.disabled = matchCount === 0
-    button.textContent = matchCount ? `Generate All Discord Matchups (${matchCount})` : 'No Active Matches'
+    setButtonState(button, {
+      disabled: matchCount === 0,
+      text: matchCount ? `Generate All Discord Matchups (${matchCount})` : 'No Active Matches',
+    })
   }
 }
 
@@ -93,7 +102,7 @@ function decorateSchedule() {
     }
 
     if (existing) {
-      existing.textContent = 'Open Matchup'
+      if (existing.textContent !== 'Open Matchup') existing.textContent = 'Open Matchup'
       return
     }
 
@@ -105,6 +114,15 @@ function decorateSchedule() {
     actions.appendChild(button)
   })
   decorateBulkControl()
+}
+
+function queueDecorateSchedule() {
+  if (decorateQueued) return
+  decorateQueued = true
+  queueMicrotask(() => {
+    decorateQueued = false
+    decorateSchedule()
+  })
 }
 
 async function openMatchup(button) {
@@ -126,8 +144,7 @@ async function generateAll(button) {
   }
 
   bulkBusy = true
-  button.disabled = true
-  button.textContent = `Generating ${matchIds.length} Matchups...`
+  setButtonState(button, { disabled: true, text: `Generating ${matchIds.length} Matchups...` })
   try {
     const result = await apiRequest('/api/staff/discord/test/all', {
       method: 'POST',
@@ -178,7 +195,7 @@ export function initDiscordTestMatchups() {
     document.addEventListener('click', handleClick)
     const app = document.getElementById('app')
     if (app) {
-      observer = new MutationObserver(() => queueMicrotask(decorateSchedule))
+      observer = new MutationObserver(() => queueDecorateSchedule())
       observer.observe(app, { childList: true, subtree: true })
     }
   }
