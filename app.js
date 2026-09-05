@@ -7,7 +7,7 @@ import { initStaffEnhancements } from './js/staff-enhancements.js?v=20260905-sta
 import { initSeriesRosterMemory } from './js/series-roster-memory.js?v=20260905-staff-stability-1'
 import { initApplyAllReview } from './js/apply-all-review.js?v=20260905-staff-stability-1'
 import { initVerifyWithoutStats } from './js/verify-without-stats.js?v=20260905-staff-stability-1'
-import { initDiscordTestMatchups } from './js/discord-test.js?v=20260905-staff-stability-1'
+import { initDiscordTestMatchups } from './js/discord-test.js?v=20260905-discord-bulk-fix-1'
 
 const app = document.getElementById('app')
 const nav = document.getElementById('main-nav')
