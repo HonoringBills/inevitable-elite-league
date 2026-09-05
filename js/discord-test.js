@@ -2,7 +2,7 @@ import { state, supabase, toast } from './core.js'
 
 let initialized = false
 let observer = null
-const busy = new Set()
+let bulkBusy = false
 const channelUrls = new Map()
 
 function apiBase() {
@@ -33,66 +33,143 @@ async function apiRequest(path, options = {}) {
   return payload
 }
 
-function matchButton(card) {
-  return card.querySelector('[data-staff-action="report-match"][data-id], [data-staff-action="reopen-match"][data-id]')
+function activeMatchButton(card) {
+  return card.querySelector('[data-staff-action="report-match"][data-id]')
+}
+
+function activeMatchIds() {
+  return [...document.querySelectorAll('.match-card [data-staff-action="report-match"][data-id]')]
+    .map((button) => String(button.dataset.id || ''))
+    .filter(Boolean)
+}
+
+function decorateBulkControl() {
+  const generator = document.getElementById('schedule-generator')
+  const matchList = document.querySelector('.match-list')
+  if (!generator || !matchList) return
+
+  let panel = document.querySelector('[data-discord-bulk-panel]')
+  if (!panel) {
+    panel = document.createElement('div')
+    panel.className = 'card teal'
+    panel.dataset.discordBulkPanel = 'true'
+    panel.style.marginBottom = '24px'
+    panel.innerHTML = `
+      <div class="admin-toolbar" style="margin:0;gap:18px;align-items:center">
+        <div>
+          <span class="card-kicker">Discord Match Operations</span>
+          <h3 style="margin:4px 0 8px">Generate All Match Channels</h3>
+          <p style="margin:0">Builds every active matchup room, live veto panel, and weekly team voice channel in one pass.</p>
+        </div>
+        <button class="button button-teal" type="button" data-discord-generate-all>Generate All Discord Matchups</button>
+      </div>`
+    generator.insertAdjacentElement('afterend', panel)
+  }
+
+  const button = panel.querySelector('[data-discord-generate-all]')
+  const matchCount = activeMatchIds().length
+  if (button && !bulkBusy) {
+    button.disabled = matchCount === 0
+    button.textContent = matchCount ? `Generate All Discord Matchups (${matchCount})` : 'No Active Matches'
+  }
 }
 
 function decorateSchedule() {
   document.querySelectorAll('.match-card').forEach((card) => {
-    const source = matchButton(card)
+    const source = activeMatchButton(card)
     const actions = source?.closest('.admin-actions')
     const matchId = String(source?.dataset.id || '')
-    if (!actions || !matchId || actions.querySelector(`[data-discord-test-match="${CSS.escape(matchId)}"]`)) return
+    const existing = card.querySelector('[data-discord-test-match]')
+
+    if (!actions || !matchId) {
+      existing?.remove()
+      return
+    }
+
+    const channelUrl = channelUrls.get(matchId)
+    if (!channelUrl) {
+      existing?.remove()
+      return
+    }
+
+    if (existing) {
+      existing.textContent = 'Open Matchup'
+      return
+    }
 
     const button = document.createElement('button')
     button.type = 'button'
     button.className = 'button button-teal compact'
     button.dataset.discordTestMatch = matchId
-    button.textContent = channelUrls.has(matchId) ? 'Open Test Matchup' : 'Create Test Matchup'
+    button.textContent = 'Open Matchup'
     actions.appendChild(button)
   })
+  decorateBulkControl()
 }
 
-async function createOrOpenMatchup(button) {
+async function openMatchup(button) {
   const matchId = String(button.dataset.discordTestMatch || '')
-  if (!matchId || busy.has(matchId)) return
-  const existingUrl = channelUrls.get(matchId)
-  if (existingUrl) {
-    window.open(existingUrl, '_blank', 'noopener,noreferrer')
+  const url = channelUrls.get(matchId)
+  if (!url) {
+    toast('Use Generate All Discord Matchups to build the active match rooms first.', 'error')
+    return
+  }
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
+
+async function generateAll(button) {
+  if (bulkBusy) return
+  const matchIds = activeMatchIds()
+  if (!matchIds.length) {
+    toast('There are no active matches waiting for Discord channels.', 'error')
     return
   }
 
-  busy.add(matchId)
+  bulkBusy = true
   button.disabled = true
-  button.textContent = 'Creating Discord...'
+  button.textContent = `Generating ${matchIds.length} Matchups...`
   try {
-    const result = await apiRequest('/api/staff/discord/test/matchup', {
+    const result = await apiRequest('/api/staff/discord/test/all', {
       method: 'POST',
-      body: JSON.stringify({ matchId }),
+      body: JSON.stringify({ matchIds }),
     })
-    if (result.channelUrl) channelUrls.set(matchId, result.channelUrl)
-    button.textContent = 'Open Test Matchup'
-    button.disabled = false
 
+    for (const item of result.results || []) {
+      if (item.matchId && item.channelUrl) channelUrls.set(String(item.matchId), item.channelUrl)
+    }
+    decorateSchedule()
+
+    const failures = Array.isArray(result.failures) ? result.failures : []
     const warnings = Array.isArray(result.warnings) ? result.warnings : []
-    const verb = result.created ? 'created' : 'already exists'
-    toast(`Discord test matchup ${verb}.${warnings.length ? ` ${warnings.length} role-assignment warning${warnings.length === 1 ? '' : 's'}.` : ''}`, warnings.length ? 'error' : 'success')
-    if (warnings.length) console.warn('[IEL Discord Test]', warnings)
+    const voiceCount = Array.isArray(result.voiceChannels) ? result.voiceChannels.length : 0
+    const message = failures.length
+      ? `${result.synced || 0}/${result.processed || matchIds.length} matchups synced. ${failures.length} failed.`
+      : `${result.synced || matchIds.length} matchup channels synced and ${voiceCount} weekly team VCs are ready.`
+    toast(message, failures.length ? 'error' : 'success')
+    if (warnings.length) console.warn('[IEL Discord Matchups] warnings', warnings)
+    if (failures.length) console.warn('[IEL Discord Matchups] failures', failures)
   } catch (error) {
-    button.disabled = false
-    button.textContent = 'Create Test Matchup'
-    toast(error.message || 'IEL could not create the Discord test matchup.', 'error')
+    toast(error.message || 'IEL could not generate all Discord matchups.', 'error')
   } finally {
-    busy.delete(matchId)
+    bulkBusy = false
+    decorateSchedule()
   }
 }
 
 function handleClick(event) {
+  const bulkButton = event.target.closest('[data-discord-generate-all]')
+  if (bulkButton) {
+    event.preventDefault()
+    event.stopPropagation()
+    generateAll(bulkButton).catch((error) => toast(error.message, 'error'))
+    return
+  }
+
   const button = event.target.closest('[data-discord-test-match]')
   if (!button) return
   event.preventDefault()
   event.stopPropagation()
-  createOrOpenMatchup(button).catch((error) => toast(error.message, 'error'))
+  openMatchup(button).catch((error) => toast(error.message, 'error'))
 }
 
 export function initDiscordTestMatchups() {
