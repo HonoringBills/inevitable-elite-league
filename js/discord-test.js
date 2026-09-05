@@ -2,6 +2,7 @@ import { state, supabase, toast } from './core.js'
 
 let initialized = false
 let observer = null
+let observedWorkspace = null
 let decorateQueued = false
 let bulkBusy = false
 const channelUrls = new Map()
@@ -125,6 +126,17 @@ function queueDecorateSchedule() {
   })
 }
 
+function attachWorkspaceObserver() {
+  const workspace = document.getElementById('staff-workspace')
+  if (!workspace || workspace === observedWorkspace) return
+  observer?.disconnect()
+  observedWorkspace = workspace
+  observer = new MutationObserver(() => queueDecorateSchedule())
+  // Staff swaps the workspace by replacing its direct children. Watching only
+  // that boundary keeps Discord decorators from reacting to their own nested UI.
+  observer.observe(workspace, { childList: true, subtree: false })
+}
+
 async function openMatchup(button) {
   const matchId = String(button.dataset.discordTestMatch || '')
   const url = channelUrls.get(matchId)
@@ -193,11 +205,7 @@ export function initDiscordTestMatchups() {
   if (!initialized) {
     initialized = true
     document.addEventListener('click', handleClick)
-    const app = document.getElementById('app')
-    if (app) {
-      observer = new MutationObserver(() => queueDecorateSchedule())
-      observer.observe(app, { childList: true, subtree: true })
-    }
   }
+  attachWorkspaceObserver()
   decorateSchedule()
 }
