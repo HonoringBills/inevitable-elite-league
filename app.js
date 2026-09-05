@@ -3,15 +3,18 @@ import { bindPublicRoute, renderPublicRoute } from './js/public.js'
 import { bindRegistration } from './js/registration.js'
 import { bindStaffPage, prepareStaffPage, renderStaffPage } from './js/staff.js'
 import { bindStatsPage, renderStatsPage } from './js/stats.js'
-import { initStaffEnhancements } from './js/staff-enhancements.js'
-import { initSeriesRosterMemory } from './js/series-roster-memory.js'
-import { initApplyAllReview } from './js/apply-all-review.js'
-import { initVerifyWithoutStats } from './js/verify-without-stats.js'
-import { initDiscordTestMatchups } from './js/discord-test.js'
+import { initStaffEnhancements } from './js/staff-enhancements.js?v=20260905-staff-stability-1'
+import { initSeriesRosterMemory } from './js/series-roster-memory.js?v=20260905-staff-stability-1'
+import { initApplyAllReview } from './js/apply-all-review.js?v=20260905-staff-stability-1'
+import { initVerifyWithoutStats } from './js/verify-without-stats.js?v=20260905-staff-stability-1'
+import { initDiscordTestMatchups } from './js/discord-test.js?v=20260905-staff-stability-1'
 
 const app = document.getElementById('app')
 const nav = document.getElementById('main-nav')
 const mobileMenu = document.getElementById('mobile-menu')
+
+let renderInFlight = false
+let renderRequested = false
 
 const publicRoutes = new Set([
   'home', 'qualifiers', 'majors', 'schedule', 'teams', 'standings', 'stats',
@@ -43,7 +46,7 @@ function updateNavigation(route) {
   mobileMenu?.setAttribute('aria-expanded', 'false')
 }
 
-async function renderRoute() {
+async function renderRouteOnce() {
   const route = resolveRoute()
   updateNavigation(route)
 
@@ -77,6 +80,30 @@ async function renderRoute() {
   window.scrollTo({ top: 0, behavior: 'auto' })
 }
 
+async function renderRoute() {
+  if (renderInFlight) {
+    renderRequested = true
+    return
+  }
+
+  renderInFlight = true
+  try {
+    do {
+      renderRequested = false
+      await renderRouteOnce()
+    } while (renderRequested)
+  } finally {
+    renderInFlight = false
+  }
+}
+
+function requestRouteRender() {
+  renderRoute().catch((error) => {
+    console.error('[IEL] route render failed', error)
+    toast(error.message || 'IEL could not refresh this page.', 'error')
+  })
+}
+
 async function bootstrap() {
   try {
     await loadPublicData()
@@ -106,12 +133,14 @@ nav?.addEventListener('click', (event) => {
   }
 })
 
-window.addEventListener('hashchange', renderRoute)
-window.addEventListener('popstate', renderRoute)
+window.addEventListener('hashchange', requestRouteRender)
+window.addEventListener('popstate', requestRouteRender)
 
 supabase.auth.onAuthStateChange((event) => {
-  if (['SIGNED_IN', 'SIGNED_OUT', 'TOKEN_REFRESHED', 'USER_UPDATED'].includes(event) && resolveRoute() === 'staff') {
-    window.setTimeout(() => renderRoute().catch((error) => toast(error.message, 'error')), 0)
+  // Token refreshes are normal background auth maintenance. Rebuilding the
+  // entire Staff DOM for them caused UI churn and could collide with tab clicks.
+  if (['SIGNED_IN', 'SIGNED_OUT', 'USER_UPDATED'].includes(event) && resolveRoute() === 'staff') {
+    window.setTimeout(requestRouteRender, 0)
   }
 })
 
