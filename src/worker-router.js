@@ -1,5 +1,6 @@
 import app from './worker-entry.js'
-import { handleDiscordInteractionRequest, handleDiscordTestRequest } from './discord-test-v2.js'
+import { handleDiscordInteractionRequest } from './discord-test-v2.js'
+import { cleanupCompletedMatchDiscord, handleDiscordMatchOpsRequest } from './discord-match-ops.js'
 
 export default {
   async fetch(request, env, ctx) {
@@ -8,7 +9,28 @@ export default {
       return handleDiscordInteractionRequest(request, env)
     }
     if (url.pathname.startsWith('/api/staff/discord/test/')) {
-      return handleDiscordTestRequest(request, env)
+      return handleDiscordMatchOpsRequest(request, env)
+    }
+    if (url.pathname === '/api/staff/scoreboards/commit' && request.method === 'POST') {
+      const authRequest = request.clone()
+      const bodyPromise = request.clone().json().catch(() => ({}))
+      const response = await app.fetch(request, env, ctx)
+      if (response.ok) {
+        try {
+          const [payload, body] = await Promise.all([
+            response.clone().json().catch(() => ({})),
+            bodyPromise,
+          ])
+          if (payload?.complete && body?.matchId) {
+            await cleanupCompletedMatchDiscord(authRequest, env, String(body.matchId))
+          }
+        } catch (error) {
+          // Reporting remains the source of truth even if Discord cleanup is
+          // temporarily unavailable. A later bulk sync can repair channels.
+          console.warn('[IEL DISCORD] completed-match cleanup failed', error)
+        }
+      }
+      return response
     }
     return app.fetch(request, env, ctx)
   },
