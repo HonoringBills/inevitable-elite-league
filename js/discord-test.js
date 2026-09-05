@@ -171,8 +171,9 @@ async function generateAll(button) {
     const failures = Array.isArray(result.failures) ? result.failures : []
     const warnings = Array.isArray(result.warnings) ? result.warnings : []
     const voiceCount = Array.isArray(result.voiceChannels) ? result.voiceChannels.length : 0
+    const firstFailure = failures[0]?.error ? ` ${String(failures[0].error).slice(0, 180)}` : ''
     const message = failures.length
-      ? `${result.synced || 0}/${result.processed || matchIds.length} matchups synced. ${failures.length} failed.`
+      ? `${result.synced || 0}/${result.processed || matchIds.length} matchups synced. ${failures.length} failed.${firstFailure}`
       : `${result.synced || matchIds.length} matchup channels synced and ${voiceCount} weekly team VCs are ready.`
     toast(message, failures.length ? 'error' : 'success')
     if (warnings.length) console.warn('[IEL Discord Matchups] warnings', warnings)
