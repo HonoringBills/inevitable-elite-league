@@ -1,12 +1,16 @@
 import app from './worker-entry.js'
 import { handleDiscordInteractionRequest } from './discord-test-v2.js'
 import { cleanupCompletedMatchDiscord, handleDiscordMatchOpsRequest } from './discord-match-ops.js'
+import { handleDiscordVoiceSync } from './discord-voice-sync.js'
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url)
     if (url.pathname === '/discord/interactions') {
       return handleDiscordInteractionRequest(request, env)
+    }
+    if (url.pathname === '/api/staff/discord/test/voice-sync') {
+      return handleDiscordVoiceSync(request, env)
     }
     if (url.pathname.startsWith('/api/staff/discord/test/')) {
       return handleDiscordMatchOpsRequest(request, env)
