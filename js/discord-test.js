@@ -156,28 +156,68 @@ async function generateAll(button) {
   }
 
   bulkBusy = true
-  setButtonState(button, { disabled: true, text: `Generating ${matchIds.length} Matchups...` })
+  const results = []
+  const failures = []
+  const warnings = []
+  let voiceChannels = []
+  let voiceError = ''
+
   try {
-    const result = await apiRequest('/api/staff/discord/test/all', {
-      method: 'POST',
-      body: JSON.stringify({ matchIds }),
-    })
+    // Keep one-click Staff UX while giving every matchup its own Worker
+    // invocation. This avoids Cloudflare's per-invocation subrequest ceiling.
+    for (let index = 0; index < matchIds.length; index += 1) {
+      const matchId = matchIds[index]
+      setButtonState(button, {
+        disabled: true,
+        text: `Generating Matchup ${index + 1}/${matchIds.length}...`,
+      })
 
-    for (const item of result.results || []) {
-      if (item.matchId && item.channelUrl) channelUrls.set(String(item.matchId), item.channelUrl)
+      try {
+        const result = await apiRequest('/api/staff/discord/test/matchup', {
+          method: 'POST',
+          body: JSON.stringify({ matchId }),
+        })
+        results.push({ ...result, matchId })
+        if (result.channelUrl) channelUrls.set(matchId, result.channelUrl)
+        if (Array.isArray(result.warnings)) {
+          warnings.push(...result.warnings.map((warning) => `${matchId}: ${warning}`))
+        }
+        decorateSchedule()
+      } catch (error) {
+        failures.push({ matchId, error: String(error.message || error) })
+      }
     }
-    decorateSchedule()
 
-    const failures = Array.isArray(result.failures) ? result.failures : []
-    const warnings = Array.isArray(result.warnings) ? result.warnings : []
-    const voiceCount = Array.isArray(result.voiceChannels) ? result.voiceChannels.length : 0
-    const firstFailure = failures[0]?.error ? ` ${String(failures[0].error).slice(0, 180)}` : ''
-    const message = failures.length
-      ? `${result.synced || 0}/${result.processed || matchIds.length} matchups synced. ${failures.length} failed.${firstFailure}`
-      : `${result.synced || matchIds.length} matchup channels synced and ${voiceCount} weekly team VCs are ready.`
-    toast(message, failures.length ? 'error' : 'success')
+    setButtonState(button, { disabled: true, text: 'Syncing Weekly Team VCs...' })
+    try {
+      const voiceResult = await apiRequest('/api/staff/discord/test/voice-sync', {
+        method: 'POST',
+        body: JSON.stringify({ matchIds }),
+      })
+      voiceChannels = Array.isArray(voiceResult.voiceChannels) ? voiceResult.voiceChannels : []
+      if (Array.isArray(voiceResult.warnings)) warnings.push(...voiceResult.warnings)
+    } catch (error) {
+      voiceError = String(error.message || error)
+    }
+
+    const firstFailure = failures[0]?.error ? ` ${failures[0].error.slice(0, 160)}` : ''
+    let message
+    let type = 'success'
+
+    if (failures.length) {
+      message = `${results.length}/${matchIds.length} matchup channels synced. ${failures.length} failed.${firstFailure}`
+      type = 'error'
+    } else if (voiceError) {
+      message = `${results.length} matchup channels synced, but weekly VC sync failed: ${voiceError.slice(0, 180)}`
+      type = 'error'
+    } else {
+      message = `${results.length} matchup channels synced and ${voiceChannels.length} weekly team VCs are ready.`
+    }
+
+    toast(message, type)
     if (warnings.length) console.warn('[IEL Discord Matchups] warnings', warnings)
     if (failures.length) console.warn('[IEL Discord Matchups] failures', failures)
+    if (voiceError) console.warn('[IEL Discord Matchups] voice sync failure', voiceError)
   } catch (error) {
     toast(error.message || 'IEL could not generate all Discord matchups.', 'error')
   } finally {
