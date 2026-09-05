@@ -135,6 +135,23 @@ async function discordRequest(env, path, options = {}) {
   }
   throw apiError(502, 'Discord request failed after multiple attempts.')
 }
+async function envWithBotAccess(env) {
+  const settings = assertConfigured(env)
+  const bot = await discordRequest(env, '/users/@me')
+  if (!isSnowflake(bot?.id)) throw apiError(502, 'IEL could not identify the Discord bot account.')
+  const member = await discordRequest(env, `/guilds/${settings.guildId}/members/${bot.id}`)
+  const botRoleIds = Array.isArray(member?.roles) ? member.roles.map(String).filter(isSnowflake) : []
+  const mergedRoleIds = [...new Set([...settings.staffRoleIds, ...botRoleIds])]
+  const merged = mergedRoleIds.join(',')
+  const current = settings.staffRoleIds.join(',')
+  if (merged === current) return env
+  return new Proxy(env, {
+    get(target, prop, receiver) {
+      if (prop === 'DISCORD_TEST_STAFF_ROLE_IDS') return merged
+      return Reflect.get(target, prop, receiver)
+    },
+  })
+}
 function slug(value) {
   return String(value || '')
     .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
@@ -143,6 +160,54 @@ function slug(value) {
 }
 function normalized(value) {
   return String(value || '').trim().toLocaleLowerCase('en-US')
+}
+function snowflakeCompare(a, b) {
+  try {
+    const left = BigInt(String(a?.id || '0'))
+    const right = BigInt(String(b?.id || '0'))
+    if (left < right) return -1
+    if (left > right) return 1
+    return 0
+  } catch {
+    return String(a?.id || '').localeCompare(String(b?.id || ''))
+  }
+}
+async function reconcileMatchupCategories(env, token) {
+  const settings = assertConfigured(env)
+  const channels = await discordRequest(env, `/guilds/${settings.guildId}/channels`)
+  const categories = (channels || [])
+    .filter((channel) => Number(channel.type) === 4 && normalized(channel.name) === normalized(settings.categoryName))
+    .sort(snowflakeCompare)
+  if (categories.length <= 1) return categories[0] || null
+
+  const canonical = categories[0]
+  for (const duplicate of categories.slice(1)) {
+    const children = (channels || []).filter((channel) => String(channel.parent_id || '') === String(duplicate.id))
+    for (const child of children) {
+      try {
+        const moved = await discordRequest(env, `/channels/${child.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ parent_id: canonical.id }),
+        })
+        if (moved) Object.assign(child, moved)
+      } catch (error) {
+        if (error.status !== 404) throw error
+      }
+    }
+    try {
+      await discordRequest(env, `/channels/${duplicate.id}`, { method: 'DELETE' })
+    } catch (error) {
+      if (error.status !== 404) throw error
+    }
+    if (token) {
+      await db(env, token,
+        `match_discord_channels?environment=eq.${ENVIRONMENT}&category_id=eq.${encodeURIComponent(duplicate.id)}`,
+        { method: 'PATCH', body: JSON.stringify({ category_id: canonical.id }) }).catch((error) => {
+          console.warn('[IEL DISCORD] category mapping repair failed', duplicate.id, error)
+        })
+    }
+  }
+  return canonical
 }
 function voiceChannelName(week, teamName) {
   return `w${week}-${slug(teamName)}-vc`.slice(0, 100)
@@ -236,7 +301,11 @@ async function createOrSyncSingleMatchup(request, env, matchId, staff = null) {
   const payload = await response.clone().json().catch(() => ({}))
   if (!response.ok) throw apiError(response.status, payload.error || `IEL could not create ${context.match.match_code || 'the matchup'}.`)
   const settings = assertConfigured(env)
-  await simplifyWelcome(env, payload.channelId, context, payload.roleA?.id, payload.roleB?.id, settings.staffRoleIds)
+  try {
+    await simplifyWelcome(env, payload.channelId, context, payload.roleA?.id, payload.roleB?.id, settings.staffRoleIds)
+  } catch (error) {
+    payload.warnings = [...(Array.isArray(payload.warnings) ? payload.warnings : []), `Welcome formatting warning: ${String(error.message || error)}`]
+  }
   return { ...payload, matchId, context }
 }
 async function ensureCategory(env, guildChannels) {
@@ -331,11 +400,14 @@ async function handleSingle(request, env) {
   const cors = corsHeaders(request, env)
   try {
     const staff = await requireStaff(request, env)
+    const runtimeEnv = await envWithBotAccess(env)
+    await reconcileMatchupCategories(runtimeEnv, staff.token)
     const body = await request.json().catch(() => ({}))
     const matchId = String(body.matchId || '')
     if (!isUuid(matchId)) throw apiError(400, 'Choose a valid IEL match.')
-    const result = await createOrSyncSingleMatchup(request, env, matchId, staff)
-    const voiceChannels = await ensureWeeklyVoiceChannels(env, staff.token, [result])
+    const result = await createOrSyncSingleMatchup(request, runtimeEnv, matchId, staff)
+    const voiceChannels = await ensureWeeklyVoiceChannels(runtimeEnv, staff.token, [result])
+    await reconcileMatchupCategories(runtimeEnv, staff.token)
     const { context, ...safe } = result
     return json({ ...safe, voiceChannels }, 200, cors)
   } catch (error) {
@@ -346,17 +418,22 @@ async function handleAll(request, env) {
   const cors = corsHeaders(request, env)
   try {
     const staff = await requireStaff(request, env)
+    const runtimeEnv = await envWithBotAccess(env)
     const body = await request.json().catch(() => ({}))
     const matchIds = [...new Set((Array.isArray(body.matchIds) ? body.matchIds : []).map(String).filter(isUuid))]
     if (!matchIds.length) throw apiError(400, 'No active IEL matches were supplied for Discord generation.')
 
-    const attempts = await runWithConcurrency(matchIds, 2, (matchId) => createOrSyncSingleMatchup(request, env, matchId, staff))
+    await reconcileMatchupCategories(runtimeEnv, staff.token)
+    // Discord channel/category creation is intentionally serialized. Parallel
+    // setup can race the category lookup and create duplicate Match Ups trees.
+    const attempts = await runWithConcurrency(matchIds, 1, (matchId) => createOrSyncSingleMatchup(request, runtimeEnv, matchId, staff))
     const successful = attempts.filter((item) => item.ok).map((item) => item.value)
     const failures = attempts.filter((item) => !item.ok).map((item) => ({
       matchId: item.item,
       error: String(item.error?.message || item.error || 'Unknown Discord error'),
     }))
-    const voiceChannels = successful.length ? await ensureWeeklyVoiceChannels(env, staff.token, successful) : []
+    const voiceChannels = successful.length ? await ensureWeeklyVoiceChannels(runtimeEnv, staff.token, successful) : []
+    await reconcileMatchupCategories(runtimeEnv, staff.token)
     const results = successful.map(({ context, ...result }) => ({ ...result, matchId: context.match.id, matchCode: context.match.match_code }))
     const warnings = results.flatMap((result) => Array.isArray(result.warnings) ? result.warnings.map((warning) => `${result.matchCode || result.matchId}: ${warning}`) : [])
 
